@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Flow Control</title>
+</head>
+<style>
+body {
+	background-color: black;	
+}
+canvas {
+	background-color: white;
+}
+.d-flex {
+	display: -ms-flexbox !important;
+	display: flex !important
+}
+.flex-fill {
+	-ms-flex: 1 1 auto !important;
+	flex: 1 1 auto !important
+}
+input[type=range][orient=vertical]
+{
+	writing-mode: bt-lr; /* IE */
+	-webkit-appearance: slider-vertical; /* WebKit */
+	margin-top:197px;
+	width: 8px;
+	height: 400px;
+	padding: 0 5px;
+}
+#scollbar {
+	width: 20px;
+	background-color: #444;
+}
+#scollbar .thumb{
+	position: absolute;
+	width: 20px;
+	height: 100px;
+	background-color: #222;
+}
+#editor {
+	background-color: #eee;
+}
+textarea {
+	width: 80%
+}
+</style>
+<body oncontextmenu="return false">
+<div style="display: none">
+	<img id="bg-top" src="./top.png">
+	<img id="bg-bottom" src="./bottom.png">
+	<img id="bg-total" src="./total.png">
+	<img id="bg-inc" src="./sep-income.png">
+	<img id="bg-exp" src="./sep-exp.png">
+	<img id="bg" src="./bg.jpg">
+	<canvas id="sceneprint" width="720" height="1280"></canvas>
+	<canvas id="scene" width="720" height="3000"></canvas>
+</div>
+
+<div class="d-flex">
+	<canvas id="scenepreview" class="flex-start" width="360" height="640"></canvas>
+	<input type="range" orient="vertical" value="100" max="100" />
+	<div id="editor" class="flex-fill">
+		<button id="download">下载图片</button>
+		<div>
+<textarea rows="38">
+"card_num" : "6217920902709125",
+"tabs" : ["current","week","month"],
+"currnet_tab" : "month",
+"period" : "2020/10/08 ~ 2020/11/07",
+"initial_balance": 0.85,
+"transactions" : [
+	{ 
+		"type": "income",
+		"amount": 50000,
+		"date": "2020/11/08", 
+		"summary": "银行入账",
+		"memo": "虚拟账户取现",
+		"time": "19:16:51",
+		"sender": "991* *** 2646 金运通支付备付金"
+	},
+	{
+		"type": "expenditure",
+		"date": "2020/11/08", 
+		"amount": 0.1,
+		"summary": "充值",
+		"memo": "支付宝-徐瑞"
+	},
+	{ 
+		"type": "expenditure",
+		"date": "2020/11/07", 
+		"amount": 0.1,
+		"summary": "跨行转出",
+		"memo": "跨行转出"
+	}
+]
+</textarea>
+		</div>
+	</div>
+</div>
+
+</body>
+<script>
+const COLOR_LABEL = "#888";
+const COLOR_INCOME = "#cd3b68";
+const COLOR_EXPENDITURE = "#5da661";
+
+const NJ = (num) => (num/100).toLocaleString('en-US', {minimumFractionDigits: 2})
+const $ = (selector) => document.querySelector(selector);
+class App{
+
+	canvas = null;
+	context = null;
+	contextPreview = null;
+	contextPrint = null;
+	imgTop = $("#bg-top");
+	imgBottom = $("#bg-bottom");
+	
+	imgTotal = $("#bg-total");
+	imgSepInc = $("#bg-inc");
+	imgSepExp = $("#bg-exp");
+	imgBg = $("#bg");
+	constructor() {
+		
+		let scaleBy = 0.5;
+		const canvasPreview = $("#scenepreview");
+		this.contextPreview = canvasPreview.getContext("2d");
+		this.contextPreview.scale(scaleBy,scaleBy);
+
+		scaleBy = 1;
+		const canvasPrint = $("#sceneprint");
+		this.contextPrint = canvasPrint.getContext("2d");
+		this.contextPrint.scale(scaleBy,scaleBy);
+		
+		this.canvas = $("#scene");
+		this.context = this.canvas.getContext("2d");
+		this.context.scale(scaleBy,scaleBy);
+
+		this.render();
+
+		$('#download').onclick = ()=>{
+			this.render(true,()=>{
+				const link = document.createElement('a');
+				link.href = $("#sceneprint").toDataURL("image/jpg");
+				link.download='载图1.jpg';
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+			});
+			
+		};
+		$('textarea').onkeyup = (e) => {
+			this.render()
+		}
+		$('input[type=range]').onchange=(e) => {
+			this.render();
+		}
+		setInterval(()=>this.render(),30000)
+	}
+	getWeek (date) {
+		return ['周日','周一','周二','周三','周四','周五','周六'][new Date(date).getDay()];
+	}
+	getJson () {
+		try {
+			const json = JSON.parse('{'+$('textarea').value+'}');
+			let balance=Math.round(json.initial_balance*100);
+			json.totalIncome = 0, 
+			json.totalExpenditures = 0;
+			for(let i=json.transactions.length-1;i>=0;i--) {
+				let v = json.transactions[i];
+				let amount = Math.round(v.amount*100);
+				if (v.type==='income') {
+					balance += amount;
+					json.totalIncome += amount;
+				} else {
+					balance -= amount;
+					json.totalExpenditures += amount;
+				}
+				v.balance = balance;
+			}
+			return json;
+		} catch (err) {
+			console.log(err);
+		}
+	}
+
+	render(print=false,cb=null) {
+		const json = this.getJson();
+
+
+		this.context.beginPath();
+		this.context.rect(0, 0, 720, 3000);
+		this.context.fillStyle = "white";
+		this.context.fill();
+
+
+		/* this.context.drawImage(this.imgBg, 0, -193);
+ */
+		this.context.drawImage(this.imgTotal,0,0);
+		/* print period */
+		const period = json.period;
+		this.context.fillStyle = "#2b2b2b";
+		this.context.font = "26px Arial";
+		this.context.fillText(period, 44, 143);
+
+		this.context.fillStyle = COLOR_INCOME;
+		this.context.font = "52px Arial";
+		this.context.fillText(NJ(json.totalIncome), 44, 268);
+		
+		this.context.fillStyle = COLOR_EXPENDITURE;
+		this.context.font = "52px Arial";
+		this.context.fillText(NJ(json.totalExpenditures), 380, 268);
+
+		let offsetY = 316;
+		for(let tx of json.transactions) {
+			const week = this.getWeek(tx.date);
+			this.context.fillStyle = "#000";
+			this.context.font = "28px Arial";
+			this.context.fillText(week, 13, offsetY+68);
+
+			this.context.fillStyle = "#000";
+			this.context.font = "22px Arial";
+			this.context.fillText(tx.date, 15, offsetY+95);
+
+			const xlabel = 185, xValue = 367;
+			if (tx.type==='income') {
+				this.context.drawImage(this.imgSepInc,0,offsetY);
+
+				this.context.fillStyle = COLOR_LABEL;
+				this.context.font = "23px Arial";
+				
+				this.context.fillText('收入', xlabel, offsetY+41);
+				this.context.fillText('余额', xlabel, offsetY+86);
+				this.context.fillText('摘要', xlabel, offsetY+132);
+				this.context.fillText('交易地点/附言', xlabel, offsetY+178);
+				this.context.fillText('交易时间', xlabel, offsetY+223);
+				this.context.fillText('记账日', xlabel, offsetY+269);
+				this.context.fillText('对方账户', xlabel, offsetY+314);
+
+				this.context.fillStyle = COLOR_INCOME;
+				this.context.fillText(NJ(tx.amount*100), xValue, offsetY+41);
+				this.context.fillStyle = COLOR_LABEL;
+				this.context.fillText(NJ(tx.balance), xValue, offsetY+86);
+				this.context.fillText(tx.summary, xValue, offsetY+132);
+				this.context.fillText(tx.memo, xValue, offsetY+178);
+				this.context.fillText(tx.date.replace(/\//g,'')+' '+tx.time, xValue, offsetY+223);
+				this.context.fillText(tx.date.replace(/\//g,''), xValue, offsetY+269);
+				if (tx.sender.length<18) {
+					this.context.fillText(tx.sender, xValue, offsetY+314);	
+				} else {
+					this.context.fillText(tx.sender.slice(0,18), xValue, offsetY+314);
+					offsetY += 30;
+					this.context.fillText(tx.sender.slice(18), xValue, offsetY+314);
+				}
+				offsetY += 333;
+
+
+			} else{
+				
+				this.context.drawImage(this.imgSepExp,0,offsetY);
+
+				this.context.fillStyle = COLOR_LABEL;
+				this.context.font = "23px Arial";
+				
+				this.context.fillText('支出', xlabel, offsetY+41);
+				this.context.fillText('余额', xlabel, offsetY+86);
+				this.context.fillText('摘要', xlabel, offsetY+132);
+				this.context.fillText('交易地点/附言', xlabel, offsetY+178);
+
+				this.context.fillStyle = COLOR_EXPENDITURE;
+				this.context.fillText(NJ(tx.amount*100), xValue, offsetY+41);
+				this.context.fillStyle = COLOR_LABEL;
+				this.context.fillText(NJ(tx.balance), xValue, offsetY+86);
+				this.context.fillText(tx.summary, xValue, offsetY+132);
+				this.context.fillText(tx.memo, xValue, offsetY+178);
+				offsetY += 198;
+			}
+			
+
+			
+		}
+		offsetY += 200;
+		this.context.drawImage(this.imgBottom,0,offsetY);
+		
+
+		var sourceImageData = this.canvas.toDataURL("image/png");
+		var destinationImage = new Image;
+		destinationImage.onload = ()=>{
+			const context = print ? this.contextPrint : this.contextPreview;
+			let offset = (offsetY+63) * (100 - $('input[type=range]').value) / 100;
+			context.drawImage(destinationImage,0,197 - offset);
+
+			context.drawImage(this.imgTop,0,0);
+			let cardnum = json.card_num.slice(0,4)+'***'+json.card_num.slice(-4);
+			context.fillStyle = "#505050";
+			context.font = "26px Arial";
+			context.fillText(cardnum, 43, 164);
+
+			let date = new Date();
+			let hh = date.getHours();
+			let mm = date.getMinutes();
+			let time = (hh>9?'':'0')+hh+':'+(mm>9?'':'0')+mm;
+			context.fillStyle = "#ddfdfc";
+			context.font = "24px Arial";
+			context.fillText(time, 330, 25);
+
+
+			if (cb) cb();
+		};
+		destinationImage.src = sourceImageData;
+	}
+}
+window.onload = ()=>new App();
+</script>
+</html>
