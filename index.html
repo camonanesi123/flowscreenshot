@@ -73,7 +73,7 @@ textarea {
 "transactions" : [
 	{ 
 		"type": "income",
-		"amount": 50000,
+		"amount": 80000.00,
 		"date": "2020/11/08", 
 		"summary": "银行入账",
 		"memo": "虚拟账户取现",
@@ -83,16 +83,24 @@ textarea {
 	{
 		"type": "expenditure",
 		"date": "2020/11/08", 
-		"amount": 0.1,
+		"amount": 1000.00,
 		"summary": "充值",
 		"memo": "支付宝-徐瑞"
 	},
 	{ 
 		"type": "expenditure",
 		"date": "2020/11/07", 
-		"amount": 0.1,
+		"amount": 21000.00,
 		"summary": "跨行转出",
 		"memo": "跨行转出"
+	},{ 
+		"type": "income",
+		"amount": 48889.00,
+		"date": "2020/11/06", 
+		"summary": "银行入账",
+		"memo": "跨行转入",
+		"time": "12:32:42",
+		"sender": "6228****8478 张成祥 农业银行"
 	}
 ]
 </textarea>
@@ -202,7 +210,26 @@ class App{
 		const period = json.period;
 		this.context.fillStyle = "#2b2b2b";
 		this.context.font = "26px Arial";
-		this.context.fillText(period, 44, 143);
+		/* using today to last month as period */
+		var today = new Date();
+		var year = today.getFullYear();
+		var month = today.getMonth()+1;
+		var day = today.getDate();
+		var endDate = year+'/'+month+'/'+day;
+		console.log(endDate);
+		/*获取 beginDate */
+		//获取30天前得日期
+		var lastDate = new Date(today - 1000 * 60 * 60 * 24 * 30);//最后30天可以更改，意义：是获取多少天前的时间
+        var lastY = lastDate.getFullYear();
+        var lastM = lastDate.getMonth()+1;
+        var lastD = lastDate.getDate();
+		var lastDate = lastY + "/" + (lastM < 10 ? "0" + lastM : lastM) + "/"+(lastD < 10 ? "0" + lastD : lastD);//得到30天前的时间
+		console.log(lastDate);
+
+		const dateRange = lastDate+' ~ '+ endDate
+		this.context.fillText(dateRange, 44, 143);
+
+		//this.context.fillText(period, 44, 143);
 
 		this.context.fillStyle = COLOR_INCOME;
 		this.context.font = "52px Arial";
@@ -214,6 +241,13 @@ class App{
 
 		let offsetY = 316;
 		for(let tx of json.transactions) {
+			/*tx.date 替换为 从今天到前 30天 任意一天日期*/
+			tx.date = new Date(today - 1000 * 60 * 60 * 24 *Math.floor(Math.random() * Math.floor(30)));//3 天前的转入
+			var y1 = tx.date.getFullYear();
+			var m1 = tx.date.getMonth()+1;
+            var d1 = tx.date.getDate();
+		    tx.date = y1 + "/" + (m1 < 10 ? "0" + m1 : m1) + "/"+(d1 < 10 ? "0" + d1 : d1);//得到30天前的时间
+		        
 			const week = this.getWeek(tx.date);
 			this.context.fillStyle = "#000";
 			this.context.font = "28px Arial";
@@ -244,6 +278,7 @@ class App{
 				this.context.fillText(NJ(tx.balance), xValue, offsetY+86);
 				this.context.fillText(tx.summary, xValue, offsetY+132);
 				this.context.fillText(tx.memo, xValue, offsetY+178);
+				
 				this.context.fillText(tx.date.replace(/\//g,'')+' '+tx.time, xValue, offsetY+223);
 				this.context.fillText(tx.date.replace(/\//g,''), xValue, offsetY+269);
 				if (tx.sender.length<18) {
