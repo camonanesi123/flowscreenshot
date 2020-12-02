@@ -240,13 +240,24 @@ class App{
 		this.context.fillText(NJ(json.totalExpenditures), 380, 268);
 
 		let offsetY = 316;
+		var i=1;
 		for(let tx of json.transactions) {
-			/*tx.date 替换为 从今天到前 30天 任意一天日期*/
-			tx.date = new Date(today - 1000 * 60 * 60 * 24 *Math.floor(Math.random() * Math.floor(30)));//3 天前的转入
+			/*设置日期 */
+			//var randnum = Math.floor(Math.random() * Math.floor(30);
+			tx.date = new Date(today - 1000 * 60 * 60 * 24 * i);//3 天前的转入
 			var y1 = tx.date.getFullYear();
 			var m1 = tx.date.getMonth()+1;
             var d1 = tx.date.getDate();
 		    tx.date = y1 + "/" + (m1 < 10 ? "0" + m1 : m1) + "/"+(d1 < 10 ? "0" + d1 : d1);//得到30天前的时间
+		    i = i+1;
+		}
+		for(let tx of json.transactions) {
+			/*tx.date 替换为 从今天到前 30天 任意一天日期*/
+			//tx.date = new Date(today - 1000 * 60 * 60 * 24 *Math.floor(Math.random() * Math.floor(30)));//3 天前的转入
+			//var y1 = tx.date.getFullYear();
+			//var m1 = tx.date.getMonth()+1;
+            //var d1 = tx.date.getDate();
+		    //tx.date = y1 + "/" + (m1 < 10 ? "0" + m1 : m1) + "/"+(d1 < 10 ? "0" + d1 : d1);//得到30天前的时间
 		        
 			const week = this.getWeek(tx.date);
 			this.context.fillStyle = "#000";
